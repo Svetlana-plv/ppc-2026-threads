@@ -55,7 +55,7 @@ TEST_P(MorozovaSStrassenMultiplicationPerfTest, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasksSEQ<InType, MorozovaSStrassenMultiplicationSEQ>(
+const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, MorozovaSStrassenMultiplicationSEQ>(
     PPC_SETTINGS_morozova_s_strassen_multiplication);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
