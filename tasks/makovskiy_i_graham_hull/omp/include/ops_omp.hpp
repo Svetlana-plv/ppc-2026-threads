@@ -1,6 +1,7 @@
 #pragma once
 
 #include "makovskiy_i_graham_hull/common/include/common.hpp"
+#include "task/include/task.hpp"
 
 namespace makovskiy_i_graham_hull {
 
