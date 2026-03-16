@@ -2,8 +2,10 @@
 
 #include <omp.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #include "dergynov_s_integrals_multistep_rectangle/common/include/common.hpp"
@@ -12,21 +14,10 @@ namespace dergynov_s_integrals_multistep_rectangle {
 namespace {
 
 bool ValidateBorders(const std::vector<std::pair<double, double>> &borders) {
-  for (const auto &[left, right] : borders) {
-    if (!std::isfinite(left) || !std::isfinite(right)) return false;
-    if (left >= right) return false;
-  }
-  return true;
-}
-
-std::vector<int> LinearToMultiIndex(size_t linear_idx, int dim, int n) {
-  std::vector<int> idx(dim);
-  size_t tmp = linear_idx;
-  for (int d = dim - 1; d >= 0; --d) {
-    idx[d] = tmp % n;
-    tmp /= n;
-  }
-  return idx;
+  return std::ranges::all_of(borders, [](const auto &p) {
+    const auto &[left, right] = p;
+    return std::isfinite(left) && std::isfinite(right) && left < right;
+  });
 }
 
 }  // namespace
@@ -40,9 +31,15 @@ DergynovSIntegralsMultistepRectangleOMP::DergynovSIntegralsMultistepRectangleOMP
 bool DergynovSIntegralsMultistepRectangleOMP::ValidationImpl() {
   const auto &[func, borders, n] = GetInput();
 
-  if (!func) return false;
-  if (n <= 0) return false;
-  if (borders.empty()) return false;
+  if (!func) {
+    return false;
+  }
+  if (n <= 0) {
+    return false;
+  }
+  if (borders.empty()) {
+    return false;
+  }
 
   return ValidateBorders(borders);
 }
@@ -53,7 +50,11 @@ bool DergynovSIntegralsMultistepRectangleOMP::PreProcessingImpl() {
 }
 
 bool DergynovSIntegralsMultistepRectangleOMP::RunImpl() {
-  const auto &[func, borders, n] = GetInput();
+  const auto &input = GetInput();
+  const auto &func = std::get<0>(input);
+  const auto &borders = std::get<1>(input);
+  int n = std::get<2>(input);
+
   const int dim = static_cast<int>(borders.size());
 
   std::vector<double> h(dim);
@@ -72,28 +73,33 @@ bool DergynovSIntegralsMultistepRectangleOMP::RunImpl() {
   }
 
   std::vector<double> local_sums(omp_get_max_threads(), 0.0);
-  
+
   int error_flag = 0;
 
-#pragma omp parallel
+#pragma omp parallel default(none) shared(func, borders, h, dim, n, total_points, local_sums, error_flag, cell_volume)
   {
     int thread_id = omp_get_thread_num();
     double local_sum = 0.0;
 
 #pragma omp for schedule(static)
     for (size_t linear_idx = 0; linear_idx < total_points; ++linear_idx) {
-      if (error_flag) continue;
+      if (error_flag != 0) {
+        continue;
+      }
 
-      std::vector<int> idx = LinearToMultiIndex(linear_idx, dim, n);
-
+      size_t tmp = linear_idx;
       std::vector<double> point(dim);
-      for (int d = 0; d < dim; ++d) {
-        point[d] = borders[d].first + (idx[d] + 0.5) * h[d];
+
+      for (int dimension = dim - 1; dimension >= 0; --dimension) {
+        int idx_val = static_cast<int>(tmp % static_cast<size_t>(n));
+        tmp /= static_cast<size_t>(n);
+
+        point[dimension] = borders[dimension].first + ((static_cast<double>(idx_val) + 0.5) * h[dimension]);
       }
 
       double f_val = func(point);
       if (!std::isfinite(f_val)) {
-        #pragma omp atomic write
+#pragma omp atomic write
         error_flag = 1;
         continue;
       }
@@ -103,7 +109,7 @@ bool DergynovSIntegralsMultistepRectangleOMP::RunImpl() {
     local_sums[thread_id] = local_sum;
   }
 
-  if (error_flag) {
+  if (error_flag != 0) {
     return false;
   }
 

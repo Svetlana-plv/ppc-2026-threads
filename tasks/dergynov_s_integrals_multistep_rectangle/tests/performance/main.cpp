@@ -44,10 +44,9 @@ TEST_P(DergynovSIntegralsRectanglePerfTest, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType,
-    DergynovSIntegralsMultistepRectangleSEQ,
-    DergynovSIntegralsMultistepRectangleOMP>(
-        PPC_SETTINGS_dergynov_s_integrals_multistep_rectangle);
+const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, DergynovSIntegralsMultistepRectangleSEQ,
+                                                       DergynovSIntegralsMultistepRectangleOMP>(
+    PPC_SETTINGS_dergynov_s_integrals_multistep_rectangle);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
