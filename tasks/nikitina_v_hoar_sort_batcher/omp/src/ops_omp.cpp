@@ -36,7 +36,7 @@ void CompareSplit(std::vector<int> &arr, int start1, int len1, int start2, int l
 }
 }  // namespace
 
-HoareSortBatcherOMP::HoareSortBatcherOMP(const InType &in) : BaseTask(in), input_(in) {}
+HoareSortBatcherOMP::HoareSortBatcherOMP(const InType &in) : input_(in) {}
 
 bool HoareSortBatcherOMP::ValidationImpl() {
   return true;
