@@ -32,7 +32,7 @@ constexpr int kBitsPerDigit = 8;
 constexpr int kRadix = 1 << kBitsPerDigit;
 constexpr uint32_t kSignMask = 0x80000000U;
 
-static void ComputePrefixSums(std::vector<int> &count) {
+void ComputePrefixSums(std::vector<int> &count) {
   for (size_t idx = 1; idx < count.size(); ++idx) {
     count[idx] += count[idx - 1];
   }
@@ -98,7 +98,9 @@ void ChernovTRadixSortTBB::SimpleMerge(const std::vector<int> &left, const std::
                                        std::vector<int> &result) {
   result.resize(left.size() + right.size());
 
-  size_t i = 0, j = 0, k = 0;
+  size_t i = 0;
+  size_t j = 0;
+  size_t k = 0;
 
   while (i < left.size() && j < right.size()) {
     if (left[i] <= right[j]) {

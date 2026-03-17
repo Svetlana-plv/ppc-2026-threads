@@ -22,6 +22,7 @@ class ChernovTRadixSortTBB : public BaseTask {
 
   static void RadixSortLSD(std::vector<int> &data);
   static void SimpleMerge(const std::vector<int> &left, const std::vector<int> &right, std::vector<int> &result);
+  static void ComputePrefixSums(std::vector<int> &count);
 };
 
 }  // namespace chernov_t_radix_sort
