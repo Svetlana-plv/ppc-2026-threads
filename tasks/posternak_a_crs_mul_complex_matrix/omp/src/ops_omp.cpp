@@ -12,8 +12,8 @@
 
 namespace {
 
-static size_t ComputeRowNoZeroCount(const posternak_a_crs_mul_complex_matrix::CRSMatrix &a,
-                                    const posternak_a_crs_mul_complex_matrix::CRSMatrix &b, int row, double threshold) {
+size_t ComputeRowNoZeroCount(const posternak_a_crs_mul_complex_matrix::CRSMatrix &a,
+                             const posternak_a_crs_mul_complex_matrix::CRSMatrix &b, int row, double threshold) {
   std::unordered_map<int, std::complex<double>> row_sum;
 
   for (int idx_a = a.index_row[row]; idx_a < a.index_row[row + 1]; ++idx_a) {
@@ -36,7 +36,7 @@ static size_t ComputeRowNoZeroCount(const posternak_a_crs_mul_complex_matrix::CR
   return local;
 }
 
-static void BuildResultStructure(posternak_a_crs_mul_complex_matrix::CRSMatrix &res, std::vector<size_t> &row_prefix) {
+void BuildResultStructure(posternak_a_crs_mul_complex_matrix::CRSMatrix &res, std::vector<size_t> &row_prefix) {
   for (int i = 1; i < res.rows; ++i) {
     row_prefix[i] += row_prefix[i - 1];
   }
@@ -51,9 +51,9 @@ static void BuildResultStructure(posternak_a_crs_mul_complex_matrix::CRSMatrix &
   }
 }
 
-static void ComputeAndWriteRow(const posternak_a_crs_mul_complex_matrix::CRSMatrix &a,
-                               const posternak_a_crs_mul_complex_matrix::CRSMatrix &b,
-                               posternak_a_crs_mul_complex_matrix::CRSMatrix &res, int row, double threshold) {
+void ComputeAndWriteRow(const posternak_a_crs_mul_complex_matrix::CRSMatrix &a,
+                        const posternak_a_crs_mul_complex_matrix::CRSMatrix &b,
+                        posternak_a_crs_mul_complex_matrix::CRSMatrix &res, int row, double threshold) {
   std::unordered_map<int, std::complex<double>> row_sum;
 
   for (int idx_a = a.index_row[row]; idx_a < a.index_row[row + 1]; ++idx_a) {
