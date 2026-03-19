@@ -2,7 +2,6 @@
 
 #include <omp.h>
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -20,9 +19,11 @@ void ZyazevaSMatrixMultCannonAlgOMP::MultiplyBlocks(const std::vector<double> &a
                                                     std::vector<double> &c, int block_size) {
   for (int i = 0; i < block_size; ++i) {
     for (int k = 0; k < block_size; ++k) {
-      double a_ik = a[static_cast<size_t>(i) * block_size + k];
+      const size_t i_idx = static_cast<size_t>(i) * block_size;
+      const size_t k_idx = static_cast<size_t>(k) * block_size;
+      double a_ik = a[i_idx + k];
       for (int j = 0; j < block_size; ++j) {
-        c[static_cast<size_t>(i) * block_size + j] += a_ik * b[static_cast<size_t>(k) * block_size + j];
+        c[i_idx + j] += a_ik * b[k_idx + j];
       }
     }
   }
@@ -55,129 +56,106 @@ bool ZyazevaSMatrixMultCannonAlgOMP::RunImpl() {
   std::vector<double> res_m(static_cast<size_t>(sz) * sz, 0.0);
 
   int num_threads = 1;
-#pragma omp parallel
+#pragma omp parallel default(none) shared(num_threads)
   {
 #pragma omp single
     num_threads = omp_get_num_threads();
   }
 
-  if (!IsPerfectSquare(num_threads) || sz < num_threads) {
-#pragma omp parallel for default(none) shared(m1, m2, res_m, sz)
-    for (int i = 0; i < sz; ++i) {
-      for (int j = 0; j < sz; ++j) {
-        double sum = 0.0;
-        for (int k = 0; k < sz; ++k) {
-          sum += m1[static_cast<size_t>(i) * sz + k] * m2[static_cast<size_t>(k) * sz + j];
-        }
-        res_m[static_cast<size_t>(i) * sz + j] = sum;
-      }
-    }
-    GetOutput() = res_m;
-    return true;
-  }
+  const int grid_size = static_cast<int>(std::sqrt(num_threads));
+  const int block_size = sz / grid_size;
+  const size_t grid_size_t = static_cast<size_t>(grid_size);
+  const size_t block_size_t = static_cast<size_t>(block_size);
+  const size_t sz_t = static_cast<size_t>(sz);
 
-  int grid_size = static_cast<int>(std::sqrt(num_threads));
-
-  if (sz % grid_size != 0) {
-#pragma omp parallel for default(none) shared(m1, m2, res_m, sz)
-    for (int i = 0; i < sz; ++i) {
-      for (int j = 0; j < sz; ++j) {
-        double sum = 0.0;
-        for (int k = 0; k < sz; ++k) {
-          sum += m1[static_cast<size_t>(i) * sz + k] * m2[static_cast<size_t>(k) * sz + j];
-        }
-        res_m[static_cast<size_t>(i) * sz + j] = sum;
-      }
-    }
-    GetOutput() = res_m;
-    return true;
-  }
-
-  int block_size = sz / grid_size;
-
-  std::vector<std::vector<double>> blocks_a(static_cast<size_t>(grid_size) * grid_size);
-  std::vector<std::vector<double>> blocks_b(static_cast<size_t>(grid_size) * grid_size);
-  std::vector<std::vector<double>> blocks_c(static_cast<size_t>(grid_size) * grid_size,
-                                            std::vector<double>(static_cast<size_t>(block_size) * block_size, 0.0));
+  std::vector<std::vector<double>> blocks_a(grid_size_t * grid_size_t);
+  std::vector<std::vector<double>> blocks_b(grid_size_t * grid_size_t);
+  std::vector<std::vector<double>> blocks_c(grid_size_t * grid_size_t,
+                                            std::vector<double>(block_size_t * block_size_t, 0.0));
 
   for (int i = 0; i < grid_size; ++i) {
     for (int j = 0; j < grid_size; ++j) {
-      size_t block_idx = static_cast<size_t>(i) * grid_size + j;
-      blocks_a[block_idx].resize(static_cast<size_t>(block_size) * block_size);
-      blocks_b[block_idx].resize(static_cast<size_t>(block_size) * block_size);
+      const size_t block_idx = static_cast<size_t>(i) * grid_size_t + j;
+      blocks_a[block_idx].resize(block_size_t * block_size_t);
+      blocks_b[block_idx].resize(block_size_t * block_size_t);
+
       for (int bi = 0; bi < block_size; ++bi) {
         for (int bj = 0; bj < block_size; ++bj) {
-          size_t global_i = static_cast<size_t>(i) * block_size + bi;
-          size_t global_j = static_cast<size_t>(j) * block_size + bj;
-          size_t local_idx = static_cast<size_t>(bi) * block_size + bj;
+          const size_t global_i = static_cast<size_t>(i) * block_size_t + bi;
+          const size_t global_j = static_cast<size_t>(j) * block_size_t + bj;
+          const size_t local_idx = static_cast<size_t>(bi) * block_size_t + bj;
 
-          blocks_a[block_idx][local_idx] = m1[global_i * sz + global_j];
-          blocks_b[block_idx][local_idx] = m2[global_i * sz + global_j];
+          blocks_a[block_idx][local_idx] = m1[global_i * sz_t + global_j];
+          blocks_b[block_idx][local_idx] = m2[global_i * sz_t + global_j];
         }
       }
     }
   }
 
-  std::vector<std::vector<double>> aligned_a(static_cast<size_t>(grid_size) * grid_size);
-  std::vector<std::vector<double>> aligned_b(static_cast<size_t>(grid_size) * grid_size);
+  std::vector<std::vector<double>> aligned_a(grid_size_t * grid_size_t);
+  std::vector<std::vector<double>> aligned_b(grid_size_t * grid_size_t);
 
-#pragma omp parallel for default(none) shared(blocks_a, blocks_b, aligned_a, aligned_b, grid_size) collapse(2)
+#pragma omp parallel for default(none) shared(blocks_a, blocks_b, aligned_a, aligned_b, grid_size, grid_size_t) \
+    collapse(2)
   for (int i = 0; i < grid_size; ++i) {
     for (int j = 0; j < grid_size; ++j) {
-      size_t block_idx = static_cast<size_t>(i) * grid_size + j;
+      const size_t block_idx = static_cast<size_t>(i) * grid_size_t + j;
 
-      size_t a_src_idx = static_cast<size_t>(i) * grid_size + (j + i) % grid_size;
+      const size_t a_src_idx = static_cast<size_t>(i) * grid_size_t + ((j + i) % grid_size);
       aligned_a[block_idx] = blocks_a[a_src_idx];
 
-      size_t b_src_idx = static_cast<size_t>((i + j) % grid_size) * grid_size + j;
+      const size_t b_src_idx = static_cast<size_t>((i + j) % grid_size) * grid_size_t + j;
       aligned_b[block_idx] = blocks_b[b_src_idx];
     }
   }
 
   for (int step = 0; step < grid_size; ++step) {
-#pragma omp parallel for default(none) shared(aligned_a, aligned_b, blocks_c, grid_size, block_size) collapse(2)
+#pragma omp parallel for default(none) shared(aligned_a, aligned_b, blocks_c, grid_size, block_size, grid_size_t) \
+    collapse(2)
     for (int i = 0; i < grid_size; ++i) {
       for (int j = 0; j < grid_size; ++j) {
-        size_t block_idx = static_cast<size_t>(i) * grid_size + j;
+        const size_t block_idx = static_cast<size_t>(i) * grid_size_t + j;
         MultiplyBlocks(aligned_a[block_idx], aligned_b[block_idx], blocks_c[block_idx], block_size);
       }
     }
 
     if (step < grid_size - 1) {
-      std::vector<std::vector<double>> new_aligned_a(static_cast<size_t>(grid_size) * grid_size);
-      std::vector<std::vector<double>> new_aligned_b(static_cast<size_t>(grid_size) * grid_size);
+      std::vector<std::vector<double>> new_aligned_a(grid_size_t * grid_size_t);
+      std::vector<std::vector<double>> new_aligned_b(grid_size_t * grid_size_t);
 
-#pragma omp parallel for default(none) shared(aligned_a, aligned_b, new_aligned_a, new_aligned_b, grid_size) collapse(2)
+#pragma omp parallel for default(none) \
+    shared(aligned_a, aligned_b, new_aligned_a, new_aligned_b, grid_size, grid_size_t) collapse(2)
       for (int i = 0; i < grid_size; ++i) {
         for (int j = 0; j < grid_size; ++j) {
-          size_t block_idx = static_cast<size_t>(i) * grid_size + j;
+          const size_t block_idx = static_cast<size_t>(i) * grid_size_t + j;
 
-          size_t a_src_idx = static_cast<size_t>(i) * grid_size + (j + 1) % grid_size;
+          const size_t a_src_idx = static_cast<size_t>(i) * grid_size_t + ((j + 1) % grid_size);
           new_aligned_a[block_idx] = aligned_a[a_src_idx];
 
-          size_t b_src_idx = static_cast<size_t>((i + 1) % grid_size) * grid_size + j;
+          const size_t b_src_idx = static_cast<size_t>((i + 1) % grid_size) * grid_size_t + j;
           new_aligned_b[block_idx] = aligned_b[b_src_idx];
         }
       }
 
-      aligned_a = new_aligned_a;
-      aligned_b = new_aligned_b;
+      aligned_a = std::move(new_aligned_a);
+      aligned_b = std::move(new_aligned_b);
     }
   }
 
-#pragma omp parallel for default(none) shared(blocks_c, res_m, grid_size, block_size, sz) collapse(2)
+#pragma omp parallel for default(none) shared(blocks_c, res_m, grid_size, block_size, sz_t, grid_size_t, block_size_t) \
+    collapse(2)
   for (int i = 0; i < grid_size; ++i) {
     for (int j = 0; j < grid_size; ++j) {
-      size_t block_idx = static_cast<size_t>(i) * grid_size + j;
+      const size_t block_idx = static_cast<size_t>(i) * grid_size_t + j;
       const auto &block = blocks_c[block_idx];
 
       for (int bi = 0; bi < block_size; ++bi) {
         for (int bj = 0; bj < block_size; ++bj) {
-          size_t global_i = static_cast<size_t>(i) * block_size + bi;
-          size_t global_j = static_cast<size_t>(j) * block_size + bj;
-          size_t local_idx = static_cast<size_t>(bi) * block_size + bj;
+          const size_t global_i = static_cast<size_t>(i) * block_size_t + bi;
+          const size_t global_j = static_cast<size_t>(j) * block_size_t + bj;
+          const size_t local_idx = static_cast<size_t>(bi) * block_size_t + bj;
 
-          res_m[global_i * sz + global_j] = block[local_idx];
+          res_m[global_i * sz_t + global_j] = block[local_idx];
         }
       }
     }
