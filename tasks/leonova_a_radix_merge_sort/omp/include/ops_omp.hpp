@@ -40,21 +40,18 @@ class LeonovaARadixMergeSortOMP : public BaseTask {
 
   static inline uint64_t ToUnsignedValue(int64_t value);
   static inline void FillUnsignedKeys(const std::vector<int64_t> &arr, size_t left, size_t size,
-                                    std::vector<uint64_t> &keys);
-  static inline void CopyTempToArray(std::vector<int64_t> &arr, size_t left,
-                                   std::vector<int64_t> &temp_arr, std::vector<uint64_t> &keys,
-                                   std::vector<uint64_t> &temp_keys);
+                                      std::vector<uint64_t> &keys);
+  static inline void CopyTempToArray(std::vector<int64_t> &arr, size_t left, std::vector<int64_t> &temp_arr,
+                                     std::vector<uint64_t> &keys, std::vector<uint64_t> &temp_keys);
 
   static inline void ResetLocalCounts(LeonovaARadixMergeSortOMP::CounterTable &local_counts);
   static inline void BuildThreadOffsets(const LeonovaARadixMergeSortOMP::CounterTable &local_counts,
-                                      size_t thread_count,
-                                      LeonovaARadixMergeSortOMP::CounterTable &local_offsets);
+                                        size_t thread_count, LeonovaARadixMergeSortOMP::CounterTable &local_offsets);
   static inline void CountByteValues(const std::vector<uint64_t> &keys, size_t size, int shift,
-                                   LeonovaARadixMergeSortOMP::CounterTable &local_counts);
-  static inline void ScatterByte(const std::vector<uint64_t> &keys, const std::vector<int64_t> &arr,
-                               size_t left, size_t size, int shift,
-                               LeonovaARadixMergeSortOMP::CounterTable &local_offsets,
-                               std::vector<int64_t> &temp_arr, std::vector<uint64_t> &temp_keys);
+                                     LeonovaARadixMergeSortOMP::CounterTable &local_counts);
+  static inline void ScatterByte(const std::vector<uint64_t> &keys, const std::vector<int64_t> &arr, size_t left,
+                                 size_t size, int shift, LeonovaARadixMergeSortOMP::CounterTable &local_offsets,
+                                 std::vector<int64_t> &temp_arr, std::vector<uint64_t> &temp_keys);
 };
 
 }  // namespace leonova_a_radix_merge_sort

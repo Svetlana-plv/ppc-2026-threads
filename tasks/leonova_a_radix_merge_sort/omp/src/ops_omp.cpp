@@ -1,9 +1,10 @@
 #include "leonova_a_radix_merge_sort/omp/include/ops_omp.hpp"
 
+#include <omp.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <omp.h>
 #include <vector>
 
 #include "leonova_a_radix_merge_sort/common/include/common.hpp"
@@ -21,8 +22,7 @@ inline void LeonovaARadixMergeSortOMP::ResetLocalCounts(CounterTable &local_coun
   }
 }
 
-inline void LeonovaARadixMergeSortOMP::BuildThreadOffsets(const CounterTable &local_counts,
-                                                          size_t thread_count,
+inline void LeonovaARadixMergeSortOMP::BuildThreadOffsets(const CounterTable &local_counts, size_t thread_count,
                                                           CounterTable &local_offsets) {
   std::vector<size_t> bucket_totals(kNumCounters, 0);
 
@@ -69,8 +69,7 @@ inline void LeonovaARadixMergeSortOMP::CountByteValues(const std::vector<uint64_
 }
 
 inline void LeonovaARadixMergeSortOMP::ScatterByte(const std::vector<uint64_t> &keys, const std::vector<int64_t> &arr,
-                                                   size_t left, size_t size, int shift,
-                                                   CounterTable &local_offsets,
+                                                   size_t left, size_t size, int shift, CounterTable &local_offsets,
                                                    std::vector<int64_t> &temp_arr, std::vector<uint64_t> &temp_keys) {
   const auto thread_id = static_cast<size_t>(omp_get_thread_num());
   auto &thread_offsets = local_offsets[thread_id];
@@ -145,9 +144,8 @@ void LeonovaARadixMergeSortOMP::RadixSort(std::vector<int64_t> &arr, size_t left
   CounterTable local_counts(thread_count, CounterRow(kNumCounters, 0));
   CounterTable local_offsets(thread_count, CounterRow(kNumCounters, 0));
 
-#pragma omp parallel default(none) \
-    shared(arr, keys, temp_arr, temp_keys, local_counts, local_offsets, left, size, omp_threads, thread_count) \
-    num_threads(omp_threads)
+#pragma omp parallel default(none) shared(arr, keys, temp_arr, temp_keys, local_counts, local_offsets, left, size, \
+                                              omp_threads, thread_count) num_threads(omp_threads)
   {
     FillUnsignedKeys(arr, left, size, keys);
 
@@ -179,8 +177,7 @@ void LeonovaARadixMergeSortOMP::RadixSort(std::vector<int64_t> &arr, size_t left
   }
 }
 
-void LeonovaARadixMergeSortOMP::SimpleMerge(std::vector<int64_t> &arr, size_t left, size_t mid,
-                                            size_t right) {
+void LeonovaARadixMergeSortOMP::SimpleMerge(std::vector<int64_t> &arr, size_t left, size_t mid, size_t right) {
   const size_t left_size = mid - left;
   const size_t right_size = right - mid;
   std::vector<int64_t> merged(left_size + right_size);
@@ -208,8 +205,7 @@ void LeonovaARadixMergeSortOMP::SimpleMerge(std::vector<int64_t> &arr, size_t le
   std::ranges::copy(merged, arr.data() + left);
 }
 
-void LeonovaARadixMergeSortOMP::RadixMergeSort(std::vector<int64_t> &arr, size_t left,
-                                               size_t right) {
+void LeonovaARadixMergeSortOMP::RadixMergeSort(std::vector<int64_t> &arr, size_t left, size_t right) {
   struct SortTask {
     size_t left;
     size_t right;
