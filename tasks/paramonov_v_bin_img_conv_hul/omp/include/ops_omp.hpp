@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "paramonov_v_bin_img_conv_hul/common/include/common.hpp"

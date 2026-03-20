@@ -174,9 +174,9 @@ void ConvexHullOMP::ExtractConnectedComponents() {
   FindStartPoints(pixels, rows, cols, visited, start_points);
 
 #pragma omp parallel for default(none) shared(start_points, total_pixels, rows, cols, pixels, components)
-  for (size_t i = 0; i < start_points.size(); ++i) {
-    int start_row = start_points[i].first;
-    int start_col = start_points[i].second;
+  for (const auto &start_point : start_points) {
+    int start_row = start_point.first;
+    int start_col = start_point.second;
     ProcessComponent(start_row, start_col, rows, cols, total_pixels, pixels, components);
   }
 
