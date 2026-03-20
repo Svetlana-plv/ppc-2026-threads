@@ -122,8 +122,6 @@ bool KazennovaATestTaskOMP::PreProcessingImpl() {
 }
 
 void KazennovaATestTaskOMP::MultiplyBlock(int a_idx, int b_idx, int c_idx, int bs) {
-  size_t block_elements = static_cast<size_t>(bs) * bs;
-
   for (int ii = 0; ii < bs; ++ii) {
     for (int kk = 0; kk < bs; ++kk) {
       double a_val = a_blocks_[a_idx + (ii * bs) + kk];
