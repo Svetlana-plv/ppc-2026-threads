@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "nikitin_a_monte_carlo/common/include/common.hpp"
+#include "nikitin_a_monte_carlo/omp/include/ops_omp.hpp"
 #include "nikitin_a_monte_carlo/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 
@@ -230,7 +231,9 @@ const std::array<TestType, 22> kTestParam = {
                               FunctionType::kProduct)}}};
 
 const auto kTestTasksList = std::tuple_cat(
-    ppc::util::AddFuncTask<NikitinAMonteCarloSEQ, InType>(kTestParam, PPC_SETTINGS_nikitin_a_monte_carlo));
+    ppc::util::AddFuncTask<NikitinAMonteCarloSEQ, InType>(kTestParam, PPC_SETTINGS_nikitin_a_monte_carlo),
+    ppc::util::AddFuncTask<NikitinAMonteCarloOMP, InType>(kTestParam, PPC_SETTINGS_nikitin_a_monte_carlo)
+  );
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
