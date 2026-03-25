@@ -7,6 +7,7 @@
 #include "timur_a_cannon/common/include/common.hpp"
 #include "timur_a_cannon/omp/include/ops_omp.hpp"
 #include "timur_a_cannon/seq/include/ops_seq.hpp"
+#include "timur_a_cannon/stl/include/ops_stl.hpp"
 #include "timur_a_cannon/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
 namespace timur_a_cannon {
@@ -41,10 +42,8 @@ namespace {
 
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, TimurACannonMatrixMultiplication, TimurACannonMatrixMultiplicationOMP,
-                                TimurACannonMatrixMultiplicationTBB>(PPC_SETTINGS_timur_a_cannon);
-
-const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
-const auto kPerfTestName = TimurACannonPerfTests::CustomPerfTestName;
+                                TimurACannonMatrixMultiplicationTBB, TimurACannonMatrixMultiplicationSTL>(
+        PPC_SETTINGS_timur_a_cannon);
 
 INSTANTIATE_TEST_SUITE_P(RunModeTests, TimurACannonPerfTests, kGtestValues, kPerfTestName);
 }  // namespace
