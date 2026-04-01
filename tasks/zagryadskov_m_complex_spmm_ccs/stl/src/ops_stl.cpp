@@ -1,58 +1,141 @@
-#include "example_threads/stl/include/ops_stl.hpp"
+#include "zagryadskov_m_complex_spmm_ccs/stl/include/ops_stl.hpp"
 
-#include <atomic>
-#include <numeric>
+#include <complex>
 #include <thread>
 #include <vector>
 
-#include "example_threads/common/include/common.hpp"
 #include "util/include/util.hpp"
+#include "zagryadskov_m_complex_spmm_ccs/common/include/common.hpp"
 
-namespace nesterov_a_test_task_threads {
+namespace zagryadskov_m_complex_spmm_ccs {
 
-NesterovATestTaskSTL::NesterovATestTaskSTL(const InType &in) {
+ZagryadskovMComplexSpMMCCSSTL::ZagryadskovMComplexSpMMCCSSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  GetOutput() = 0;
+  GetOutput() = CCS();
 }
 
-bool NesterovATestTaskSTL::ValidationImpl() {
-  return (GetInput() > 0) && (GetOutput() == 0);
+void ZagryadskovMComplexSpMMCCSSTL::SpMMSymbolic(const CCS &a, const CCS &b, std::vector<int> &col_ptr, int jstart,
+                                                 int jend) {
+  std::vector<int> marker(a.m, -1);
+
+  for (int j = jstart; j < jend; ++j) {
+    int count = 0;
+
+    for (int k = b.col_ptr[j]; k < b.col_ptr[j + 1]; ++k) {
+      int b_row = b.row_ind[k];
+      for (int zp = a.col_ptr[b_row]; zp < a.col_ptr[b_row + 1]; ++zp) {
+        int a_row = a.row_ind[zp];
+        if (marker[a_row] != j) {
+          marker[a_row] = j;
+          ++count;
+        }
+      }
+    }
+    col_ptr[j + 1] = count;
+  }
 }
 
-bool NesterovATestTaskSTL::PreProcessingImpl() {
-  GetOutput() = 2 * GetInput();
-  return GetOutput() > 0;
-}
+void ZagryadskovMComplexSpMMCCSSTL::SpMMKernel(const CCS &a, const CCS &b, CCS &c, const std::complex<double> &zero,
+                                               double eps, std::vector<int> &rows,
+                                               std::vector<std::complex<double>> &acc, std::vector<int> &marker,
+                                               int j) {
+  rows.clear();
+  int write_ptr = c.col_ptr[j];
 
-bool NesterovATestTaskSTL::RunImpl() {
-  for (InType i = 0; i < GetInput(); i++) {
-    for (InType j = 0; j < GetInput(); j++) {
-      for (InType k = 0; k < GetInput(); k++) {
-        std::vector<InType> tmp(i + j + k, 1);
-        GetOutput() += std::accumulate(tmp.begin(), tmp.end(), 0);
-        GetOutput() -= i + j + k;
+  for (int k = b.col_ptr[j]; k < b.col_ptr[j + 1]; ++k) {
+    std::complex<double> tmpval = b.values[k];
+    int b_row = b.row_ind[k];
+    for (int zp = a.col_ptr[b_row]; zp < a.col_ptr[b_row + 1]; ++zp) {
+      int a_row = a.row_ind[zp];
+      acc[a_row] += tmpval * a.values[zp];
+      if (marker[a_row] != j) {
+        marker[a_row] = j;
+        rows.push_back(a_row);
       }
     }
   }
 
+  for (int r_idx : rows) {
+    if (std::norm(acc[r_idx]) > eps * eps) {
+      c.row_ind[write_ptr] = r_idx;
+      c.values[write_ptr] = acc[r_idx];
+      ++write_ptr;
+    }
+    acc[r_idx] = zero;
+  }
+}
+
+void ZagryadskovMComplexSpMMCCSSTL::SpMMNumeric(const CCS &a, const CCS &b, CCS &c, const std::complex<double> &zero,
+                                                double eps, int jstart, int jend) {
+  std::vector<int> marker(a.m, -1);
+  std::vector<std::complex<double>> acc(a.m, zero);
+  std::vector<int> rows;
+
+  for (int j = jstart; j < jend; ++j) {
+    SpMMKernel(a, b, c, zero, eps, rows, acc, marker, j);
+  }
+}
+
+void ZagryadskovMComplexSpMMCCSSTL::SpMM(const CCS &a, const CCS &b, CCS &c) {
+  c.m = a.m;
+  c.n = b.n;
   const int num_threads = ppc::util::GetNumThreads();
   std::vector<std::thread> threads(num_threads);
-  GetOutput() *= num_threads;
 
-  std::atomic<int> counter(0);
-  for (int i = 0; i < num_threads; i++) {
-    threads[i] = std::thread([&]() { counter++; });
-    threads[i].join();
+  std::complex<double> zero(0.0, 0.0);
+  const double eps = 1e-14;
+
+  for (int t = 0; t < num_threads; ++t) {
+    int jstart = (t * b.n) / num_threads;
+    int jend = ((t + 1) * b.n) / num_threads;
+    threads[t] = std::thread(SpMMSymbolic, std::cref(a), std::cref(b), std::ref(c.col_ptr), jstart, jend);
+  }
+  for (auto &th : threads) {
+    th.join();
   }
 
-  GetOutput() /= counter;
-  return GetOutput() > 0;
+  c.col_ptr.resize(c.n + 1);
+  c.col_ptr[0] = 0;
+  for (int j = 0; j < c.n; ++j) {
+    c.col_ptr[j + 1] += c.col_ptr[j];
+  }
+  int nnz = c.col_ptr[b.n];
+  c.row_ind.resize(nnz);
+  c.values.resize(nnz);
+
+  for (int t = 0; t < num_threads; ++t) {
+    int jstart = (t * b.n) / num_threads;
+    int jend = ((t + 1) * b.n) / num_threads;
+    threads[t] = std::thread(SpMMNumeric, std::cref(a), std::cref(b), std::ref(c), std::cref(zero), eps, jstart, jend);
+  }
+  for (auto &th : threads) {
+    th.join();
+  }
 }
 
-bool NesterovATestTaskSTL::PostProcessingImpl() {
-  GetOutput() -= GetInput();
-  return GetOutput() > 0;
+bool ZagryadskovMComplexSpMMCCSSTL::ValidationImpl() {
+  const CCS &a = std::get<0>(GetInput());
+  const CCS &b = std::get<1>(GetInput());
+  return a.n == b.m;
 }
 
-}  // namespace nesterov_a_test_task_threads
+bool ZagryadskovMComplexSpMMCCSSTL::PreProcessingImpl() {
+  return true;
+}
+
+bool ZagryadskovMComplexSpMMCCSSTL::RunImpl() {
+  const CCS &a = std::get<0>(GetInput());
+  const CCS &b = std::get<1>(GetInput());
+  CCS &c = GetOutput();
+
+  SpMM(a, b, c);
+
+  return true;
+}
+
+bool ZagryadskovMComplexSpMMCCSSTL::PostProcessingImpl() {
+  return true;
+}
+
+}  // namespace zagryadskov_m_complex_spmm_ccs
