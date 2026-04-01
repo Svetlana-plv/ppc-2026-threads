@@ -8,8 +8,8 @@
 #include "karpich_i_bitwise_batcher/common/include/common.hpp"
 #include "karpich_i_bitwise_batcher/omp/include/ops_omp.hpp"
 #include "karpich_i_bitwise_batcher/seq/include/ops_seq.hpp"
-#include "karpich_i_bitwise_batcher/tbb/include/ops_tbb.hpp"
 #include "karpich_i_bitwise_batcher/stl/include/ops_stl.hpp"
+#include "karpich_i_bitwise_batcher/tbb/include/ops_tbb.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
