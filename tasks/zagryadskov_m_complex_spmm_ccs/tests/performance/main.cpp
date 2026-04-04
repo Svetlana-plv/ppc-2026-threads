@@ -122,8 +122,7 @@ namespace {
 const auto kAllPerfTasks =
     ppc::util::MakeAllPerfTasks<InType, ZagryadskovMComplexSpMMCCSSEQ, ZagryadskovMComplexSpMMCCSOMP,
                                 ZagryadskovMComplexSpMMCCSTBB, ZagryadskovMComplexSpMMCCSSTL,
-                                ZagryadskovMComplexSpMMCCSALL>(
-        PPC_SETTINGS_zagryadskov_m_complex_spmm_ccs);
+                                ZagryadskovMComplexSpMMCCSALL>(PPC_SETTINGS_zagryadskov_m_complex_spmm_ccs);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
