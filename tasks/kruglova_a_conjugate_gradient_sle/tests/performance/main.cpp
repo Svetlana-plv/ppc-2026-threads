@@ -13,7 +13,7 @@ namespace kruglova_a_conjugate_gradient_sle {
 
 class KruglovaAPerfTestAConjGradSle : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  const int k_size = 2000;
+  const int k_size = 5000;
   InType input_data{};
   void SetUp() override {
     input_data.size = k_size;
